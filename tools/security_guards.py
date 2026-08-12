@@ -17,7 +17,7 @@ Checks:
    and no un-allowlisted negation (!pattern) may re-include them. Catches
    weakening that would make future users silently commit their tracker,
    profile exports, or application archives.
-3. .agents/**/package.json — no npm/bun lifecycle scripts (preinstall,
+3. Every tracked package.json — no npm/bun lifecycle scripts (preinstall,
    install, postinstall, prepare, prepack) and no trustedDependencies.
    Catches code execution smuggled into `bun install`.
 
@@ -75,6 +75,20 @@ REQUIRED_IGNORE_RULES = [
     # fetching service, and that skill reads an API token from the environment.
     ".env",
     ".env.*",
+    # The desktop product stores private operational state outside the checkout.
+    # These rules are defense in depth if a developer points a runtime path at
+    # the repository while debugging.
+    "*.sqlite",
+    "*.sqlite-shm",
+    "*.sqlite-wal",
+    "*.sqlite3",
+    "*.sqlite3-shm",
+    "*.sqlite3-wal",
+    ".job-agent/",
+    "**/.runtime/",
+    "**/user-data/",
+    "**/browser-data/",
+    "**/artifacts/",
 ]
 
 # Negation (re-include) rules the template legitimately ships. .gitignore is
@@ -85,6 +99,7 @@ REQUIRED_IGNORE_RULES = [
 # failure - add an intentional one here in the same PR, exactly as with
 # ALLOWED_PERMISSIONS, so the widening is explicit and reviewable.
 ALLOWED_IGNORE_NEGATIONS = {
+    "!/bun.lock",
     "!cover_letters/OpenFonts/fonts/**",
     "!cv/main_example.tex",
     "!cover_letters/cover_example.tex",
@@ -155,10 +170,10 @@ def check_gitignore() -> None:
 
 def check_package_manifests() -> None:
     manifests = [
-        p for p in ROOT.glob(".agents/**/package.json") if "node_modules" not in p.parts
+        p for p in ROOT.rglob("package.json") if "node_modules" not in p.parts
     ]
     if not manifests:
-        errors.append(".agents: no package.json files found - glob roots are wrong or the tree moved")
+        errors.append("repository: no package.json files found - glob roots are wrong or the tree moved")
     for manifest in manifests:
         relpath = manifest.relative_to(ROOT)
         try:

@@ -1,6 +1,20 @@
 # Dependencies
 node_modules/
 bun.lock
+!/bun.lock
+
+# US Job Agent runtime data (always local, never source-controlled)
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
+.job-agent/
+**/.runtime/
+**/user-data/
+**/browser-data/
+**/artifacts/
 
 # Python
 __pycache__/
