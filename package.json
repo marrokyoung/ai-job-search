@@ -1,0 +1,19 @@
+{
+  "name": "us-job-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "bun test packages/domain/tests",
+    "test:domain": "bun test packages/domain/tests",
+    "typecheck": "tsc --noEmit -p packages/domain/tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "typescript": "7.0.2"
+  }
+}
