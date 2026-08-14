@@ -1,0 +1,22 @@
+{
+  "name": "@us-job-agent/database",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "seed:synthetic": "node --import tsx src/seed-cli.ts",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@us-job-agent/domain": "workspace:*",
+    "better-sqlite3": "12.10.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "9.6.0",
+    "tsx": "4.23.12"
+  }
+}
