@@ -129,6 +129,41 @@ Events are immutable. Corrections append a compensating event.
 
 ## Database schema
 
+SQLite is the local authoritative store. The authoritative schema targets third
+normal form and BCNF where the business keys permit it: sources, organizations,
+job identities, posting snapshots, extractions, requirements, assessments,
+approvals, verification results, and events are separate relations. Repeating
+values use child tables rather than arrays or queryable JSON. DynamoDB is not a
+Phase 1 dependency; a future synchronization service can consume the event log
+without weakening the local schema or requiring cloud setup.
+
+SQLite does not constrain the implementation language. Phase 1 uses a typed
+Node adapter because the database lives in Electron's main process; a future
+isolated Rust worker can use the same schema through `rusqlite` or `sqlx` if a
+measured workload justifies the additional process boundary.
+
+Versioned SQL files under `packages/database/migrations/` are the single source
+of truth for the database schema. Repositories use prepared SQLite statements;
+the public database handle exposes only lifecycle operations, not the raw
+connection or a query object that can reveal it. This keeps SQLite checks,
+partial indexes, strict-table declarations, composite foreign keys, and
+immutability triggers in one reviewable representation. Migration
+versions are parsed numerically and must be unique and contiguous from version
+1; an unapplied migration cannot be inserted below the highest applied version.
+The runner applies each migration and its ledger row in a single transaction,
+and rejects migration files containing statement-level transaction control
+(BEGIN, COMMIT, END, ROLLBACK, SAVEPOINT, RELEASE) so a migration cannot commit
+partial schema changes; trigger bodies and CASE expressions remain allowed.
+
+`applications.current_state` is the sole deliberate operational
+denormalization. It is a transactionally maintained, rebuildable projection of
+the immutable application event stream so the desktop UI does not replay every
+application on every list view.
+
+Each application is pinned to the exact posting snapshot used to evaluate it.
+Eligibility and requirement-assessment relations use composite foreign keys so
+an assessment cannot cite a requirement from another extraction or posting.
+
 Initial tables:
 
 - `schema_migrations`
@@ -142,6 +177,10 @@ Initial tables:
 - `automation_settings`
 - `audit_events`
 
+Supporting normalized tables include job sources, organizations, requirement
+extractions and warnings, requirement source spans, extraction issues,
+application approvals, and verification results.
+
 Key constraints:
 
 - unique `(source, source_job_id)` when a source identifier exists;
@@ -150,6 +189,11 @@ Key constraints:
 - foreign keys enabled;
 - application state changes occur in the same transaction as their event;
 - external actions use a unique idempotency key.
+- database triggers reject updates and deletes of application events, audit
+  events, approvals, verification results, and the extraction/assessment
+  evidence chain;
+- a compensating event can supersede an event only once and only when that event
+  is the latest effective outcome.
 
 ## Eligibility policy
 
@@ -173,7 +217,13 @@ Policy invariants:
 - missing preferred skills are never hard stops.
 - a mandatory license can block only when the candidate fact store explicitly says it is absent.
 - unknown mandatory facts create review items rather than guessed answers.
+- every initial eligibility state requires a persisted assessment for the
+  application's exact posting snapshot with a matching result;
 - clearing `needs_review` requires both a new eligibility-assessment reference and corrected or newly verified candidate-fact references;
+- the referenced assessment must be persisted for the application's exact
+  posting snapshot and its result must match the requested state;
+- until candidate facts have a persisted ledger, `needs_review -> eligible` is
+  deliberately unavailable rather than trusting caller-supplied identifiers;
 - user overrides are recorded with a reason and can unblock any non-legal policy item.
 
 ## State machine

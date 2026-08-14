@@ -140,7 +140,8 @@ Controls sources, schedules, rate limits, automation level, AI provider, email a
 ### Local persistence
 
 - SQLite as the authoritative operational store.
-- Drizzle ORM for schema and migrations.
+- Versioned SQL migrations as the single schema authority, with prepared
+  repository queries behind a narrow database handle.
 - Immutable event records for state changes and external actions.
 - Filesystem artifact store for posting snapshots and generated documents.
 - OS-protected secret storage for OAuth refresh tokens and provider credentials.
