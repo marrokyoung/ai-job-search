@@ -90,6 +90,37 @@ describe("application state machine", () => {
     ).not.toThrow();
   });
 
+  test("requires evidence for every initial eligibility decision", () => {
+    expect(() =>
+      assertAuthorizedTransition({
+        from: "normalized",
+        to: "eligible",
+        authorization: {
+          automationMode: "assisted",
+          actor: "system",
+          verification: { result: "not_run" },
+          sourceSubmissionAllowed: false,
+          globalAutomationPaused: true,
+        },
+      }),
+    ).toThrow(UnauthorizedApplicationTransitionError);
+
+    expect(() =>
+      assertAuthorizedTransition({
+        from: "normalized",
+        to: "eligible",
+        authorization: {
+          automationMode: "assisted",
+          actor: "system",
+          verification: { result: "not_run" },
+          sourceSubmissionAllowed: false,
+          globalAutomationPaused: true,
+          eligibilityAssessmentReference: "persisted-assessment-1",
+        },
+      }),
+    ).not.toThrow();
+  });
+
   test("requires recorded human approval for assisted submission", () => {
     expect(() =>
       assertAuthorizedTransition({

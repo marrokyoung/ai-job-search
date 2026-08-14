@@ -159,6 +159,17 @@ export function assertAuthorizedTransition(
   const { authorization, from, to } = command;
 
   if (
+    from === "normalized" &&
+    (to === "eligible" || to === "hard_stopped" || to === "needs_review")
+  ) {
+    requireNonBlank(
+      authorization.eligibilityAssessmentReference,
+      "eligibility_assessment_required",
+      "An initial eligibility decision requires a persisted eligibility assessment reference.",
+    );
+  }
+
+  if (
     from === "needs_review" &&
     (to === "eligible" || to === "hard_stopped")
   ) {
