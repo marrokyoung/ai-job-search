@@ -81,6 +81,26 @@ jobs:
       - run: bun run typecheck
       - run: bun run test
 
+  desktop-smoke:
+    # Launches the real Electron shell on the product's target platform and
+    # requires proof that the renderer received a validated IPC response
+    # through the preload bridge (see apps/desktop/tests/electron-smoke.test.ts;
+    # the same test skips gracefully wherever the Electron binary is absent).
+    # The Electron binary fetch is an explicit step because bun deliberately
+    # does not run dependency lifecycle scripts and this repo forbids trusting
+    # them; the native better-sqlite3 artifact fetched during the build is
+    # verified against the checksum pinned in apps/desktop/build.mjs.
+    name: Desktop Electron smoke (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+      - run: bun install --frozen-lockfile
+      - name: Fetch Electron binary
+        run: node apps/desktop/node_modules/electron/install.js
+      - name: Desktop boundary tests including Electron startup smoke
+        run: bun run test:desktop
+
   dependency-review:
     name: Dependency review
     # Requires the repo's Dependency graph, which not every repo (upstream or
