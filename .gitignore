@@ -3,6 +3,9 @@ node_modules/
 bun.lock
 !/bun.lock
 
+# US Job Agent build output
+apps/desktop/dist/
+
 # US Job Agent runtime data (always local, never source-controlled)
 *.sqlite
 *.sqlite-shm

@@ -1,0 +1,25 @@
+{
+  "name": "@us-job-agent/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "productName": "US Job Agent",
+  "main": "dist/main.cjs",
+  "scripts": {
+    "build": "node build.mjs",
+    "start": "node build.mjs && electron .",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@us-job-agent/database": "workspace:*",
+    "@us-job-agent/domain": "workspace:*",
+    "better-sqlite3": "12.10.0"
+  },
+  "devDependencies": {
+    "@types/node": "26.2.0",
+    "electron": "41.10.5",
+    "esbuild": "0.28.2",
+    "tsx": "4.23.12"
+  }
+}

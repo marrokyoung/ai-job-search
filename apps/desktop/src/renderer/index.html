@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+    />
+    <title>US Job Agent</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main>
+      <h1>US Job Agent</h1>
+      <p class="banner">Synthetic data only — Phase 1 makes no live requests.</p>
+      <p>
+        Phase 1C shell: the secure main/preload/renderer boundary is in place.
+        The dashboard and routes arrive in Phase 1D.
+      </p>
+      <dl>
+        <dt>Preload bridge</dt>
+        <dd id="bridge-status">checking…</dd>
+        <dt>Automation</dt>
+        <dd id="automation-status">unknown</dd>
+        <dt>Local data directory</dt>
+        <dd id="data-directory">unknown</dd>
+      </dl>
+    </main>
+    <script src="./renderer.js" defer></script>
+  </body>
+</html>

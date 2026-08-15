@@ -8,17 +8,23 @@
     "packages/*"
   ],
   "scripts": {
-    "test": "bun run test:domain && bun run test:database",
+    "test": "bun run test:domain && bun run test:database && bun run test:desktop",
     "test:domain": "bun test packages/domain/tests",
     "test:database": "node --import tsx --test packages/database/tests/*.test.ts",
+    "test:desktop": "node --import tsx --test apps/desktop/tests/*.test.ts",
     "seed:synthetic": "node --import tsx packages/database/src/seed-cli.ts",
-    "typecheck": "bun run typecheck:domain && bun run typecheck:database",
+    "build:desktop": "node apps/desktop/build.mjs",
+    "typecheck": "bun run typecheck:domain && bun run typecheck:database && bun run typecheck:desktop",
     "typecheck:domain": "tsc --noEmit -p packages/domain/tsconfig.json",
-    "typecheck:database": "tsc --noEmit -p packages/database/tsconfig.json"
+    "typecheck:database": "tsc --noEmit -p packages/database/tsconfig.json",
+    "typecheck:desktop": "tsc --noEmit -p apps/desktop/tsconfig.json"
   },
   "devDependencies": {
     "@types/bun": "1.3.14",
     "tsx": "4.23.12",
     "typescript": "7.0.2"
+  },
+  "overrides": {
+    "@types/node": "26.2.0"
   }
 }
