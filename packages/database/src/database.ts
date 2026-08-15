@@ -1,53 +1,28 @@
-import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import Database from "better-sqlite3";
 import {
-  registerDatabaseConnection,
-  unregisterDatabaseConnection,
+  openDatabaseInternal,
+  type JobAgentDatabaseHandle,
 } from "./database-internal.ts";
-import { runMigrations } from "./migrations.ts";
 
 export type OpenDatabaseOptions = {
   filename: string;
 };
 
-export type JobAgentDatabase = ReturnType<typeof openDatabase>;
+export type JobAgentDatabase = JobAgentDatabaseHandle;
 
-const defaultMigrationsDirectory = resolve(
+// The versioned SQL files in this package's migrations/ directory are the
+// single schema authority. The general opener always uses them; a bundled
+// application (which cannot ship this package's source tree) uses the
+// separate, deliberately narrow entry point in bundled.ts instead.
+const packageMigrationsDirectory = resolve(
   dirname(fileURLToPath(import.meta.url)),
   "../migrations",
 );
 
-export function openDatabase(options: OpenDatabaseOptions) {
-  if (options.filename !== ":memory:") {
-    mkdirSync(dirname(resolve(options.filename)), { recursive: true });
-  }
-
-  const sqlite = new Database(options.filename);
-  try {
-    sqlite.pragma("foreign_keys = ON");
-    sqlite.pragma("busy_timeout = 5000");
-    if (options.filename !== ":memory:") {
-      sqlite.pragma("journal_mode = WAL");
-      sqlite.pragma("synchronous = NORMAL");
-    }
-
-    runMigrations(sqlite, defaultMigrationsDirectory);
-  } catch (error) {
-    sqlite.close();
-    throw error;
-  }
-
-  let closed = false;
-  const handle = {
-    close: () => {
-      if (closed) return;
-      closed = true;
-      unregisterDatabaseConnection(handle);
-      sqlite.close();
-    },
-  };
-  registerDatabaseConnection(handle, sqlite);
-  return handle;
+export function openDatabase(options: OpenDatabaseOptions): JobAgentDatabase {
+  return openDatabaseInternal({
+    filename: options.filename,
+    migrationsDirectory: packageMigrationsDirectory,
+  });
 }

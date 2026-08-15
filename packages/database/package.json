@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./bundled": "./src/bundled.ts"
   },
   "scripts": {
     "seed:synthetic": "node --import tsx src/seed-cli.ts",
