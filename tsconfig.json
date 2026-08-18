@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    // The tsx test loader resolves this file from the repository root; the
+    // automatic JSX runtime is required to compile the desktop renderer's
+    // .tsx sources in tests (typechecks still use each package's tsconfig).
+    "jsx": "react-jsx"
+  }
+}

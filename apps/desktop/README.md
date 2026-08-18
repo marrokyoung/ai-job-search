@@ -1,10 +1,17 @@
 # @us-job-agent/desktop
 
-Electron shell for the US Job Agent (Phase 1C). Provides the secure
-main/preload/renderer boundary and typed, runtime-validated IPC over the
-SQLite repositories in `@us-job-agent/database`. The real UI (Dashboard, Jobs,
-Applications, Review Queue, Settings) arrives in Phase 1D; the current
-renderer is a minimal static shell that only proves the boundary works.
+Electron shell for the US Job Agent (Phase 1C/1D). Provides the secure
+main/preload/renderer boundary, typed runtime-validated IPC over the SQLite
+repositories in `@us-job-agent/database`, and the React renderer with the
+Dashboard, Jobs, Applications, Review Queue, and Settings routes. The renderer
+talks only to the frozen `window.jobAgent` preload API — it has no Node,
+filesystem, database, or Electron access — and is served under a strict CSP
+via a small hash router (`src/renderer/router.ts`). Renderer tests
+(`tests/renderer-*.test.ts`) run the real preload surface, IPC router, and a
+real seeded SQLite database under happy-dom, so filters, review resolution,
+settings updates, and pause persistence are exercised end to end without an
+Electron process; the Electron smoke test then proves the same renderer works
+inside the real shell.
 
 ## Security boundary
 
@@ -68,5 +75,8 @@ bun run --filter @us-job-agent/desktop start      # build then launch Electron
   printing the success marker). It skips (rather than fails) where the
   Electron binary has not been fetched; CI runs it for real in the
   `desktop-smoke` Windows job.
-- In development the main process seeds the idempotent synthetic fixture on
-  startup. Phase 1 never makes live network requests.
+- In development the main process seeds the idempotent synthetic workspace on
+  startup: four jobs covering every eligibility outcome (eligible with soft
+  gaps, blocked, needs-review, unassessed), three applications progressed
+  through validated transitions, and one open review item. Phase 1 never makes
+  live network requests.

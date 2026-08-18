@@ -52,13 +52,17 @@ await build({
   external: ["electron"],
 });
 
-// Renderer: plain browser bundle, no Node access.
+// Renderer: plain browser bundle (React UI), no Node access.
 await build({
-  entryPoints: [join(packageRoot, "src/renderer/renderer.ts")],
+  entryPoints: [join(packageRoot, "src/renderer/main.tsx")],
   outfile: join(distDirectory, "renderer", "renderer.js"),
   bundle: true,
   platform: "browser",
   format: "iife",
+  jsx: "automatic",
+  // React's development build is noisier and slower; the bundle always ships
+  // the production build since Phase 1 has no renderer dev-server workflow.
+  define: { "process.env.NODE_ENV": '"production"' },
 });
 
 cpSync(
