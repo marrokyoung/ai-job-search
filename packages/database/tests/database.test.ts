@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -1041,7 +1042,7 @@ test("synthetic data survives closing and reopening a file database", () => {
   const seeded = seedSyntheticData(first);
   assert.deepEqual(seedSyntheticData(first), seeded);
   assert.deepEqual(connection(first).prepare("SELECT count(*) AS count FROM jobs").get(), {
-    count: 1,
+    count: 4,
   });
   first.close();
 
@@ -1050,5 +1051,61 @@ test("synthetic data survives closing and reopening a file database", () => {
   const application = connection(second)
     .prepare("SELECT job_id, current_state FROM applications WHERE id = ?")
     .get(seeded.applicationId);
-  assert.deepEqual(application, { job_id: seeded.jobId, current_state: "discovered" });
+  assert.deepEqual(application, { job_id: seeded.jobId, current_state: "shortlisted" });
+});
+
+test("the seed upgrades a Phase 1C-shaped database to the full synthetic workspace", () => {
+  const database = openMemoryDatabase();
+
+  // Recreate exactly what the Phase 1C seed left behind: one automotive job
+  // with one snapshot and one application still in 'discovered', and nothing
+  // else — no assessments, no review items, no other jobs.
+  const description =
+    "Synthetic automotive systems role. Five years requested; training and transferable projects welcomed.";
+  const { jobId } = new JobRepository(database).createWithSnapshot({
+    sourceKey: "synthetic",
+    sourceDisplayName: "Synthetic Development Source",
+    sourceJobId: "synthetic-automotive-001",
+    canonicalUrl: "https://example.invalid/jobs/synthetic-automotive-001",
+    organizationName: "Example Mobility Labs",
+    title: "Automotive Systems Engineer",
+    locationText: "Detroit, MI",
+    workplaceType: "hybrid",
+    employmentType: "full-time",
+    descriptionText: description,
+    contentHash: createHash("sha256").update(description).digest("hex"),
+    now: "2026-01-01T00:00:00.000Z",
+  });
+  const applicationId = new ApplicationRepository(database).create({
+    jobId,
+    automationMode: "assisted",
+    now: "2026-01-01T00:00:00.000Z",
+  });
+
+  // The convergent seed must adopt the existing records and top the
+  // workspace up instead of returning early with the old minimal shape.
+  const seeded = seedSyntheticData(database);
+  assert.deepEqual(seeded, { jobId, applicationId });
+
+  const count = (table: string) =>
+    (
+      connection(database).prepare(`SELECT COUNT(*) AS count FROM ${table}`).get() as {
+        count: number;
+      }
+    ).count;
+  assert.equal(count("jobs"), 4);
+  assert.equal(count("eligibility_assessments"), 3);
+  assert.equal(count("review_items"), 1);
+  assert.deepEqual(
+    connection(database)
+      .prepare("SELECT current_state FROM applications WHERE id = ?")
+      .get(applicationId),
+    { current_state: "shortlisted" },
+    "the pre-existing application is advanced through the seeded transitions",
+  );
+
+  // Still idempotent after the upgrade.
+  assert.deepEqual(seedSyntheticData(database), seeded);
+  assert.equal(count("jobs"), 4);
+  assert.equal(count("review_items"), 1);
 });
