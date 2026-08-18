@@ -133,15 +133,17 @@ describe("IPC responses", () => {
       automationPaused: boolean;
     };
     assert.deepEqual(metricsData.applicationStateCounts, [
-      { state: "discovered", count: 1 },
+      { state: "hard_stopped", count: 1 },
+      { state: "needs_review", count: 1 },
+      { state: "shortlisted", count: 1 },
     ]);
     assert.equal(metricsData.automationPaused, true);
 
     const jobs = await call("jobs:list", {});
     assert.equal(jobs.ok, true);
     const jobsData = jobs.data as { jobs: Array<{ jobId: string; title: string }> };
-    assert.equal(jobsData.jobs.length, 1);
-    assert.equal(jobsData.jobs[0]?.jobId, seeded.jobId);
+    assert.equal(jobsData.jobs.length, 4);
+    assert.ok(jobsData.jobs.some((job) => job.jobId === seeded.jobId));
 
     const detail = await call("jobs:get", { jobId: seeded.jobId });
     assert.equal(detail.ok, true);
@@ -160,8 +162,8 @@ describe("IPC responses", () => {
       };
     };
     assert.equal(applicationData.detail.application.applicationId, seeded.applicationId);
-    assert.equal(applicationData.detail.application.currentState, "discovered");
-    assert.equal(applicationData.detail.latestEvent.eventType, "application_created");
+    assert.equal(applicationData.detail.application.currentState, "shortlisted");
+    assert.equal(applicationData.detail.latestEvent.eventType, "state_transition");
     assert.ok(applicationData.detail.jobSnapshotId);
 
     const timeline = await call("applications:getTimeline", {
@@ -195,9 +197,10 @@ describe("IPC responses", () => {
     assert.equal(created.ok, true);
     const { reviewItemId } = created.data as { reviewItemId: string };
 
+    // The synthetic seed already contains one open review item.
     const listed = await call("reviews:list", { status: "open" });
     assert.equal(listed.ok, true);
-    assert.equal((listed.data as { reviewItems: unknown[] }).reviewItems.length, 1);
+    assert.equal((listed.data as { reviewItems: unknown[] }).reviewItems.length, 2);
 
     const resolved = await call("reviews:resolve", {
       reviewItemId,

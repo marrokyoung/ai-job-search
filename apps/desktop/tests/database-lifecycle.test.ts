@@ -41,11 +41,11 @@ describe("main-process database lifecycle", () => {
     secondRun.open();
     const queries = new ReadModelQueries(secondRun.database());
     const jobs = queries.listJobs();
-    assert.equal(jobs.length, 1);
-    assert.equal(jobs[0]?.jobId, seeded.jobId);
+    assert.equal(jobs.length, 4);
+    assert.ok(jobs.some((job) => job.jobId === seeded.jobId));
     const timeline = queries.getApplicationTimeline(seeded.applicationId);
     assert.ok(timeline);
-    assert.equal(timeline.length, 1);
+    assert.equal(timeline.length, 4);
     secondRun.close();
   });
 
