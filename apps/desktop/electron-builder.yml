@@ -1,0 +1,63 @@
+# electron-builder configuration for the US Job Agent Windows installer
+# (Phase 1E). See apps/desktop/README.md for the packaging workflow and the
+# native-artifact verification path.
+#
+# The app ships a fully self-contained dist/ produced by build.mjs: the bundled
+# main (main.cjs, with the better-sqlite3 JS wrapper inlined), the sandboxed
+# preload, the renderer assets, a copy of the authoritative SQL migrations, and
+# the verified Electron-ABI better_sqlite3.node. Nothing under node_modules is
+# required at runtime, so the package contains only dist/ and package.json.
+appId: com.usjobagent.desktop
+productName: US Job Agent
+copyright: US Job Agent
+
+directories:
+  # Kept out of source control (see .gitignore). CI uploads only the installer
+  # and its metadata from here, never runtime databases or logs.
+  output: release
+
+# Only the self-contained build output and the manifest. node_modules is
+# excluded on purpose: better-sqlite3's JS wrapper is bundled into main.cjs and
+# the sole native artifact travels in dist/native/, so no runtime dependency
+# collection from bun's symlinked monorepo store is needed. This also keeps
+# development-only fixtures, tests, source, and source maps out of the package —
+# none of them live under dist/.
+files:
+  - dist/**/*
+  - package.json
+  - "!**/node_modules/**/*"
+
+# The Electron-ABI native addon cannot be loaded from inside app.asar; unpack it
+# so Electron's require redirects the packed dist/native path to the unpacked
+# copy. Everything else (migrations, renderer assets) is read-only and stays
+# packed in the asar.
+asar: true
+asarUnpack:
+  - "**/*.node"
+
+# We stage our own checksum-verified Electron-ABI better_sqlite3.node in
+# build.mjs; electron-builder must not try to rebuild native modules against a
+# different toolchain.
+npmRebuild: false
+nodeGypRebuild: false
+buildDependenciesFromSource: false
+
+# Pinned to match the electron devDependency. Bumping Electron means bumping
+# both, plus re-verifying the native artifact (see README "Native-artifact
+# verification path").
+electronVersion: 41.10.5
+
+win:
+  target:
+    - nsis
+  # No code-signing in Phase 1: the installer is unsigned (see README
+  # "Unsigned installer"). No signing credentials or secrets are referenced.
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  # Uninstall removes the installed program files. Per-user runtime data under
+  # %APPDATA%/US Job Agent is intentionally left in place (see README
+  # "Uninstall behavior").
+  deleteAppDataOnUninstall: false

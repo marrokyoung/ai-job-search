@@ -23,10 +23,31 @@ const packageRoot = dirname(fileURLToPath(import.meta.url));
 const distDirectory = join(packageRoot, "dist");
 const nodeRequire = createRequire(import.meta.url);
 
+// A production packaging build (run by the `package`/`package:dir` scripts
+// before electron-builder, via the JOB_AGENT_PACKAGE_BUILD env var; the
+// `--package` flag is also honored for direct `node build.mjs --package` use).
+// It compiles the synthetic development seed OUT of the main bundle entirely —
+// see the `__JOB_AGENT_PACKAGE_BUILD__` define below — instead of only guarding
+// it at runtime, so no development fixture ships inside the production main
+// process.
+const isPackageBuild =
+  process.argv.includes("--package") || process.env.JOB_AGENT_PACKAGE_BUILD === "1";
+
 rmSync(distDirectory, { recursive: true, force: true });
 
 // Main process: Node platform, CJS (Electron's default main entry format).
 // import.meta.url is shimmed so path resolution keeps working after bundling.
+//
+// `electron` stays external (Electron provides it to its own main process).
+// `better-sqlite3` is bundled in, not left external: the packaged app ships a
+// self-contained dist/ with no node_modules, and this repo's monorepo uses
+// bun's symlinked package store, which makes runtime node_modules collection
+// fragile. Bundling the pure-JS wrapper keeps the ONLY native artifact the
+// verified, checksum-pinned Electron-ABI better_sqlite3.node staged into
+// dist/native/ and loaded through the explicit `nativeBinding` path (see
+// packages/database/src/bundled.ts). The wrapper's fallback `require('bindings')`
+// branch is never reached because that path is always supplied, so no dynamic
+// native lookup happens at runtime.
 await build({
   entryPoints: [join(packageRoot, "src/main/main.ts")],
   outfile: join(distDirectory, "main.cjs"),
@@ -34,8 +55,21 @@ await build({
   platform: "node",
   format: "cjs",
   target: "node22",
-  external: ["electron", "better-sqlite3"],
-  define: { "import.meta.url": "__import_meta_url" },
+  external: ["electron"],
+  // Removes dead branches (`if (false) { … }`) and tree-shakes what they made
+  // unreachable — notably the synthetic seed in a packaging build — while
+  // keeping identifiers and whitespace so the bundled main stays debuggable.
+  minifySyntax: true,
+  define: {
+    "import.meta.url": "__import_meta_url",
+    // Compile-time constant. In a packaging build this is `true`, so the
+    // `if (!__JOB_AGENT_PACKAGE_BUILD__ && …)` seed guard in main.ts becomes
+    // dead code and esbuild eliminates both the call and the side-effect-free
+    // seed module (synthetic companies, jobs, and applications) from the
+    // bundle. In a development build it is `false`, so the seed is retained and
+    // still gated at runtime by `!app.isPackaged`.
+    __JOB_AGENT_PACKAGE_BUILD__: JSON.stringify(isPackageBuild),
+  },
   banner: {
     js: "const __import_meta_url = require('node:url').pathToFileURL(__filename).href;",
   },
@@ -184,4 +218,6 @@ function stageElectronNativeModule() {
 
 stageElectronNativeModule();
 
-console.log("Built apps/desktop/dist");
+console.log(
+  `Built apps/desktop/dist${isPackageBuild ? " (packaging build: synthetic seed excluded)" : ""}`,
+);
