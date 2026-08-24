@@ -101,6 +101,45 @@ jobs:
       - name: Desktop boundary tests including Electron startup smoke
         run: bun run test:desktop
 
+  desktop-package:
+    # Builds the real Windows installer for "US Job Agent" with electron-builder
+    # and tests the packaged layout end to end: it launches the packaged
+    # executable with a throwaway userData directory and proves the real
+    # preload -> IPC -> SQLite -> renderer round trip, that migrations and the
+    # unpacked Electron-ABI better_sqlite3.node load from the packaged layout,
+    # that the database is created only beneath the temporary runtime directory,
+    # and that the app.asar carries no database, WAL/SHM, log, test, source-map,
+    # or development-seed artifact (see apps/desktop/tests/packaged-smoke.test.ts).
+    # The privacy scan then inspects the packaged product contents (dist/) for
+    # real PII or secrets. Only the installer and its blockmap are uploaded -
+    # never runtime databases or logs. The Phase 1 installer is unsigned: no
+    # signing credentials or code-signing secrets are configured (see
+    # apps/desktop/README.md "Unsigned installer").
+    name: Desktop Windows packaging
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - run: bun install --frozen-lockfile
+      - name: Build Windows installer
+        run: bun run --filter @us-job-agent/desktop package
+      - name: Privacy scan of source, fixtures, and packaged contents
+        run: python tools/privacy_scan.py --include-dist
+      - name: Packaged-application tests (asar layout, native binding, IPC/SQLite round trip)
+        run: node --import tsx --test apps/desktop/tests/packaged-smoke.test.ts apps/desktop/tests/log-redaction.test.ts
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: us-job-agent-windows-installer
+          path: |
+            apps/desktop/release/*.exe
+            apps/desktop/release/*.exe.blockmap
+          if-no-files-found: error
+          retention-days: 14
+
   dependency-review:
     name: Dependency review
     # Requires the repo's Dependency graph, which not every repo (upstream or
